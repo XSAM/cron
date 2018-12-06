@@ -4,6 +4,8 @@ package cron // import "gopkg.in/robfig/cron.v2"
 import (
 	"sort"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Cron keeps track of any number of entries, invoking the associated func as
@@ -32,7 +34,7 @@ type Schedule interface {
 }
 
 // EntryID identifies an entry within a Cron instance
-type EntryID int
+type EntryID string
 
 // Entry consists of a schedule and the func to execute on that schedule.
 type Entry struct {
@@ -55,7 +57,7 @@ type Entry struct {
 }
 
 // Valid returns true if this is not the zero entry.
-func (e Entry) Valid() bool { return e.ID != 0 }
+func (e Entry) Valid() bool { return e.ID != "" }
 
 // byTime is a wrapper for sorting the entry array by time
 // (with zero time at the end).
@@ -102,16 +104,15 @@ func (c *Cron) AddFunc(spec string, cmd func()) (EntryID, error) {
 func (c *Cron) AddJob(spec string, cmd Job) (EntryID, error) {
 	schedule, err := Parse(spec)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 	return c.Schedule(schedule, cmd), nil
 }
 
 // Schedule adds a Job to the Cron to be run on the given schedule.
 func (c *Cron) Schedule(schedule Schedule, cmd Job) EntryID {
-	c.nextID++
 	entry := &Entry{
-		ID:       c.nextID,
+		ID:       EntryID(uuid.New().String()),
 		Schedule: schedule,
 		Job:      cmd,
 	}
