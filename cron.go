@@ -111,8 +111,15 @@ func (c *Cron) AddJob(spec string, cmd Job) (EntryID, error) {
 
 // Schedule adds a Job to the Cron to be run on the given schedule.
 func (c *Cron) Schedule(schedule Schedule, cmd Job) EntryID {
+	entryID := EntryID(uuid.New().String())
+	c.ScheduleWithID(schedule, cmd, entryID)
+	return entryID
+}
+
+// Schedule adds a Job and entryID to the Cron to be run on the given schedule
+func (c *Cron) ScheduleWithID(schedule Schedule, cmd Job, id EntryID) {
 	entry := &Entry{
-		ID:       EntryID(uuid.New().String()),
+		ID:       id,
 		Schedule: schedule,
 		Job:      cmd,
 	}
@@ -121,7 +128,6 @@ func (c *Cron) Schedule(schedule Schedule, cmd Job) EntryID {
 	} else {
 		c.add <- entry
 	}
-	return entry.ID
 }
 
 // Entries returns a snapshot of the cron entries.
