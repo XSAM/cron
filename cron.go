@@ -16,6 +16,8 @@ type Cron struct {
 	stop     chan struct{}
 	add      chan *Entry
 	remove   chan EntryID
+	pause    chan EntryID
+	resume   chan EntryID
 	snapshot chan []Entry
 	running  bool
 	nextID   EntryID
@@ -86,6 +88,8 @@ func New() *Cron {
 		stop:     make(chan struct{}),
 		snapshot: make(chan []Entry),
 		remove:   make(chan EntryID),
+		pause:    make(chan EntryID),
+		resume:   make(chan EntryID),
 		running:  false,
 	}
 }
@@ -158,6 +162,24 @@ func (c *Cron) Remove(id EntryID) {
 	}
 }
 
+// Pause an entry from being run in the future.
+func (c *Cron) Pause(id EntryID) {
+	if c.running {
+		c.pause <- id
+	} else {
+		c.pauseEntry(id)
+	}
+}
+
+// Resume an entry from being run in the future.
+func (c *Cron) Resume(id EntryID) {
+	if c.running {
+		c.resume <- id
+	} else {
+		c.resumeEntry(id)
+	}
+}
+
 // Start the cron scheduler in its own go-routine.
 func (c *Cron) Start() {
 	c.running = true
@@ -209,6 +231,12 @@ func (c *Cron) run() {
 		case id := <-c.remove:
 			c.removeEntry(id)
 
+		case id := <-c.pause:
+			c.pauseEntry(id)
+
+		case id := <-c.resume:
+			c.resumeEntry(id)
+
 		case <-c.stop:
 			return
 		}
@@ -240,4 +268,22 @@ func (c *Cron) removeEntry(id EntryID) {
 		}
 	}
 	c.entries = entries
+}
+
+func (c *Cron) pauseEntry(id EntryID) {
+	for _, entry := range c.entries {
+		if id == entry.ID {
+			// Pause this entry
+			entry.Next = time.Now().AddDate(10, 0, 0)
+		}
+	}
+}
+
+func (c *Cron) resumeEntry(id EntryID) {
+	for _, entry := range c.entries {
+		if id == entry.ID {
+			// Resume this entry
+			entry.Next = entry.Schedule.Next(time.Now())
+		}
+	}
 }
